@@ -6,6 +6,8 @@ from pyglet.graphics import Batch
 
 from tileset import EmptyTile
 
+from math import ceil
+
 
 class Map(object):
     tileset     = None
@@ -54,17 +56,17 @@ class Map(object):
             start_x = 0
         if start_y < 0:
             start_y = 0
-        end_x = start_x + (window_x / self.tileset.tile_size) + 1
-        end_y = start_y + (window_y / self.tileset.tile_size) + 1
-        if end_x > self.width - 1:
+        end_x = start_x + int(ceil(window_x / self.tileset.tile_size)) + 1
+        end_y = start_y + int(ceil(window_y / self.tileset.tile_size)) + 1
+        if end_x >= self.width:
             end_x = self.width - 1
-        if end_y > self.height - 1:
+        if end_y >= self.height:
             end_y = self.height - 1
         if not self._prev_start_x or not self._prev_start_y or not self._prev_end_x or not self._prev_end_y:
             self._prev_start_x, self._prev_start_y = start_x, start_y
             self._prev_end_x, self._prev_end_y = end_x, end_y
-        for x in range(min(start_x, self._prev_start_x), max(end_x, self._prev_end_x)):
-            for y in range(min(start_y, self._prev_start_y), max(end_x, self._prev_end_y)):
+        for x in range(min(start_x, self._prev_start_x), max(end_x, self._prev_end_x) + 1):
+            for y in range(min(start_y, self._prev_start_y), max(end_y, self._prev_end_y) + 1):
                 if not start_x <= x <= end_x or not start_y <= y <= end_y:
                     self._matrix[x][y].batch = None
                     continue
