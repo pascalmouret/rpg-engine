@@ -42,13 +42,12 @@ class Map(object):
         for x in range(0, self.width):
             self._matrix.append([])
             for y in range(0, self.height):
-                # debug #
                 tile = EmptyTile()
-                # debug #
                 tile.set_absolute_position(x * self.tile_size, y * self.tile_size)
                 self._matrix[x].append(tile)
 
     def set_tile(self, x, y, tile):
+        tile.set_absolute_position(x * self.tile_size, y * self.tile_size)
         self._matrix[x][y] = tile
 
     def update(self, window_x, window_y, pos_x, pos_y):
