@@ -1,5 +1,6 @@
 # -*- coding: utf8 -*-
 __author__ = 'pascal'
+__xml_type__ = 'tileset'
 
 from pyglet.image import ImageGrid, TextureGrid
 from pyglet.image import load as load_image
@@ -9,16 +10,32 @@ from mixins import PositionMixin
 
 
 class BaseTile(PositionMixin):
-    pass
-
-
-class Tile(Sprite, BaseTile):
-    pass
+    is_empty = False
 
 
 class EmptyTile(BaseTile):
+    is_empty = True
+
     def draw(self):
         pass
+
+
+class Tile(Sprite, BaseTile):
+    _tileset = None
+    _tile_id = None
+
+    def __init__(self, tileset, tile_id, image):
+        self._tileset = tileset
+        self._tile_id = tile_id
+        super(Tile, self).__init__(image)
+
+    @property
+    def tileset(self):
+        return self._tileset
+
+    @property
+    def tile_id(self):
+        return self._tile_id
 
 
 class TileSet(object):
@@ -29,6 +46,7 @@ class TileSet(object):
     _height = 0
 
     _xml_type = 'tileset'
+    _xml_source = __xml_type__
 
     def __init__(self, filepath, width, height):
         self._img_src = filepath
@@ -38,13 +56,12 @@ class TileSet(object):
         if self._grid[0].width != self._grid[0].height:
             raise Exception('Tiles must be quadratic!')
         self._tile_size = self._grid[0].width
-        self._default_tile = Tile(self._grid[91])
 
     def get_default_tile(self):
-        return Tile(self._grid[91])
+        return Tile(self, 91, self._grid[91])
 
     def get_tile_by_id(self, tile_id):
-        return Tile(self._grid[tile_id])
+        return Tile(self, tile_id, self._grid[tile_id])
 
     @property
     def tile_size(self):
@@ -71,5 +88,7 @@ def load(source):
     src = xml_meta.findall('image')[0].get('src')
     width = xml_meta.findall('width')[0].get('value')
     height = xml_meta.findall('height')[0].get('value')
-
-    return TileSet(src, int(width), int(height))
+    # finalize
+    tileset = TileSet(src, int(width), int(height))
+    tileset._xml_source = source
+    return tileset
