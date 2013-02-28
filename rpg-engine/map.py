@@ -1,5 +1,6 @@
 # -*- coding: utf8 -*-
 __author__ = 'pascal'
+__xml_type__ = 'map'
 
 
 from pyglet.graphics import Batch
@@ -28,7 +29,7 @@ class Map(object):
     _prev_end_x = None
     _prev_end_y = None
 
-    _xml_type = 'map'
+    _xml_type = __xml_type__
     _xml_source = ''
 
     def __init__(self, tile_size, width, height):
@@ -88,7 +89,7 @@ class Map(object):
     def draw(self):
         self._batch.draw()
 
-    def export(self, destination):
+    def xml_export(self, destination):
         from lxml import etree
         import tileset
         xml_root = etree.Element('root', type=self._xml_type)
@@ -117,7 +118,7 @@ class Map(object):
         destination.write(etree.tostring(xml_root, pretty_print=True))
 
 
-def load(source):
+def xml_load(source):
     from lxml import etree
     import tileset
     xml_root = etree.parse(source)
@@ -128,12 +129,12 @@ def load(source):
     tile_size = xml_meta.findall('tile_size')[0].get('value')
     width = xml_meta.findall('width')[0].get('value')
     height = xml_meta.findall('height')[0].get('value')
-    mp = Map(int(tile_size), int(width), int(width))
+    mp = Map(int(tile_size), int(width), int(height))
     # fieldsets
     tilesets = []
     for include in xml_include:
         if include.tag == tileset.__xml_type__:
-            tilesets.insert(int(include.get('tileset_id')), tileset.load(include.get('src')))
+            tilesets.insert(int(include.get('tileset_id')), tileset.xml_load(include.get('src')))
     # tiles
     for tile_data in xml_map:
         tile = tilesets[int(tile_data.get('tileset_id'))].get_tile_by_id(int(tile_data.get('tile_id')))

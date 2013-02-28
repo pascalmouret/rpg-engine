@@ -67,7 +67,7 @@ class TileSet(object):
     def tile_size(self):
         return self._tile_size
 
-    def export(self, destination):
+    def xml_export(self, destination):
         from lxml import etree
         # structure
         xml_root = etree.Element('root', type=self._xml_type)
@@ -80,7 +80,7 @@ class TileSet(object):
         destination.write(etree.tostring(xml_root, pretty_print=True))
 
 
-def load(source):
+def xml_load(source):
     from lxml import etree
     xml_root = etree.parse(source)
     xml_meta = xml_root.findall('meta')[0]
