@@ -24,10 +24,10 @@ class Tile(Sprite, BaseTile):
     _tileset = None
     _tile_id = None
 
-    def __init__(self, tileset, tile_id, image):
+    def __init__(self, tileset, tile_id, texture):
         self._tileset = tileset
         self._tile_id = tile_id
-        super(Tile, self).__init__(image)
+        super(Tile, self).__init__(texture)
 
     @property
     def tileset(self):
@@ -57,11 +57,11 @@ class TileSet(object):
             raise Exception('Tiles must be quadratic!')
         self._tile_size = self._grid[0].width
 
-    def get_default_tile(self):
-        return Tile(self, 91, self._grid[91])
+    def get_texture_by_id(self, tile_id):
+        return self._grid[tile_id]
 
     def get_tile_by_id(self, tile_id):
-        return Tile(self, tile_id, self._grid[tile_id])
+        return Tile(self, tile_id, self.get_texture_by_id(tile_id))
 
     @property
     def tile_size(self):
