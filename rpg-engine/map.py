@@ -118,17 +118,19 @@ class Map(object):
         etree.SubElement(xml_meta, 'tile_size', value=str(self.tile_size))
         etree.SubElement(xml_meta, 'width', value=str(self.width))
         etree.SubElement(xml_meta, 'height', value=str(self.height))
+        etree.SubElement(xml_meta, 'layers', value=str(self.layers))
         # map
         tilesets = []
         for x, column in enumerate(self._matrix):
-            for y, tile in enumerate(column):
-                if tile.is_empty:
-                    continue
-                if tile.tileset not in tilesets:
-                    tilesets.append(tile.tileset)
-                tileset_id = tilesets.index(tile.tileset)
-                etree.SubElement(xml_map, 'tile', x=str(x), y=str(y),
-                                 tileset_id=str(tileset_id), tile_id=str(tile.tile_id))
+            for y, row in enumerate(column):
+                for z, tile in enumerate(row):
+                    if tile.is_empty:
+                        continue
+                    if tile.tileset not in tilesets:
+                        tilesets.append(tile.tileset)
+                    tileset_id = tilesets.index(tile.tileset)
+                    etree.SubElement(xml_map, 'tile', x=str(x), y=str(y), tileset_id=str(tileset_id),
+                                     tile_id=str(tile.tile_id), layer=str(z))
         # includes
         for i, ts in enumerate(tilesets):
             etree.SubElement(xml_include, tileset.__xml_type__, src=ts._xml_source.__str__(), tileset_id=str(i))
