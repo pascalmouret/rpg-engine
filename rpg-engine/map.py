@@ -11,131 +11,144 @@ from math import ceil
 
 
 class Map(object):
-    tile_size   = 0
-    width       = 0
-    height      = 0
-    px_height   = 0
-    px_width    = 0
-    layers      = 0
+    _width = 0
+    _height = 0
+    _tile_size = 0
+    _layers = 0
+    _supertile_size = 0
 
-    _matrix     = []
-    _batch      = None
-    _groups     = []
-    _pos_x      = 0
-    _pos_y      = 0
-    _window_x   = 0
-    _window_y   = 0
+    _matrix = []
+    _supertiles = []
+    _groups = []
+    _visible_supertiles = []
 
-    _prev_start_x   = None
-    _prev_start_y   = None
-    _prev_end_x     = None
-    _prev_end_y     = None
+    _window_x = 0
+    _window_y = 0
+    _center_x = 0
+    _center_y = 0
 
-    _xml_type   = __xml_type__
-    _xml_source = ''
+    _super_x1 = 0
+    _super_y1 = 0
+    _super_x2 = 0
+    _super_y2 = 0
 
-    def __init__(self, tile_size, width, height, layers):
-        self._batch = Batch()
-        self.tile_size = tile_size
-        self.width = width
-        self.height = height
-        self.px_height = height * self.tile_size
-        self.px_width = width * self.tile_size
-        self.layers = layers
-        for z in range(0, layers):
+    _xml_type = __xml_type__
+
+    def __init__(self, width, height, layers, tile_size, supertile_size):
+        self._width = width
+        self._height = height
+        self._tile_size = tile_size
+        self._layers = layers
+        self._supertile_size = supertile_size
+        self._create_matrix()
+        self._create_supertiles()
+
+        for z in range(0, self._layers):
             self._groups.insert(z, OrderedGroup(z))
-        for x in range(0, self.width):
-            self._matrix.append([])
-            for y in range(0, self.height):
-                self._matrix[x].append([])
-                for z in range(0, self.layers):
-                    tile = EmptyTile()
-                    tile.set_absolute_position(x * self.tile_size, y * self.tile_size)
-                    self._matrix[x][y].append(tile)
 
-    def set_tile(self, x, y, tile_list):
-        for i, tile in enumerate(tile_list):
-            self.set_tile_layer(x, y, i, tile)
+    @property
+    def window_x(self):
+        return self._window_x
 
-    def get_tile(self, x, y):
-        return self._matrix[x][y]
+    @window_x.setter
+    def window_x(self, value):
+        self._window_x = value
 
-    def set_tile_layer(self, x, y, z, tile):
-        tile.set_absolute_position(x * self.tile_size, y * self.tile_size)
+    @property
+    def window_y(self):
+        return self._window_y
+
+    @window_y.setter
+    def window_y(self, value):
+        self._window_y = value
+
+    def set_tile(self, x, y, z, tile):
+        tile.set_absolute_position(x * self._tile_size, y * self._tile_size)
         tile.group = self._groups[z]
+        tile.batch = self._get_supertile(x, y)
         self._matrix[x][y][z] = tile
 
-    def get_tile_layer(self, x, y, z):
-        return self._matrix[x][y][z]
-
-    def update(self, window_x, window_y, pos_x, pos_y):
-        if (window_x, window_y, pos_x, pos_y) == (self._window_x, self._window_y, self._pos_x, self._pos_y):
+    def set_absolute_center(self, x, y):
+        if (x, y) == (self._center_x, self._center_y):
             return
-        self._window_x, self._window_y, self._pos_x, self._pos_y = window_x, window_y, pos_x, pos_y
-        offset_x = (window_x / 2) - pos_x
-        offset_y = (window_y / 2) - pos_y
-        start_x = -1 * offset_x / self.tile_size
-        start_y = -1 * offset_y / self.tile_size
-        if start_x < 0:
-            start_x = 0
-        if start_y < 0:
-            start_y = 0
-        end_x = start_x + int(ceil(window_x / self.tile_size)) + 1
-        end_y = start_y + int(ceil(window_y / self.tile_size)) + 1
-        if end_x >= self.width:
-            end_x = self.width - 1
-        if end_y >= self.height:
-            end_y = self.height - 1
-        if not self._prev_start_x or not self._prev_start_y or not self._prev_end_x or not self._prev_end_y:
-            self._prev_start_x, self._prev_start_y = start_x, start_y
-            self._prev_end_x, self._prev_end_y = end_x, end_y
-        for x in range(min(start_x, self._prev_start_x), max(end_x, self._prev_end_x) + 1):
-            for y in range(min(start_y, self._prev_start_y), max(end_y, self._prev_end_y) + 1):
-                for z in range(0, self.layers):
+        self._center_x, self._center_y = x, y
+
+        x1, y1, x2, y2, offset_x, offset_y = self._get_visible_tiles()
+        for x in range(x1, x2 + 1):
+            for y in range(y1, y2 + 1):
+                for z in range(0, self._layers):
                     tile = self._matrix[x][y][z]
                     if tile.is_empty:
                         continue
-                    if not start_x <= x <= end_x or not start_y <= y <= end_y:
-                        tile.batch = None
-                        continue
                     tile.x = tile.pos_x + offset_x
                     tile.y = tile.pos_y + offset_y
-                    tile.batch = self._batch
-        self._prev_start_x, self._prev_start_y = start_x, start_y
-        self._prev_end_x, self._prev_end_y = end_x, end_y
+
+        self._set_visible_supertiles(x1, y1, x2, y2)
 
     def draw(self):
-        self._batch.draw()
+        for supertile in self._visible_supertiles:
+            supertile.draw()
 
-    def xml_export(self, destination):
-        from lxml import etree
-        import tileset
-        xml_root = etree.Element('root', type=self._xml_type)
-        xml_meta = etree.SubElement(xml_root, 'meta')
-        xml_include = etree.SubElement(xml_root, 'includes')
-        xml_map = etree.SubElement(xml_root, 'map')
-        # meta
-        etree.SubElement(xml_meta, 'tile_size', value=str(self.tile_size))
-        etree.SubElement(xml_meta, 'width', value=str(self.width))
-        etree.SubElement(xml_meta, 'height', value=str(self.height))
-        etree.SubElement(xml_meta, 'layers', value=str(self.layers))
-        # map
-        tilesets = []
-        for x, column in enumerate(self._matrix):
-            for y, row in enumerate(column):
-                for z, tile in enumerate(row):
-                    if tile.is_empty:
-                        continue
-                    if tile.tileset not in tilesets:
-                        tilesets.append(tile.tileset)
-                    tileset_id = tilesets.index(tile.tileset)
-                    etree.SubElement(xml_map, 'tile', x=str(x), y=str(y), tileset_id=str(tileset_id),
-                                     tile_id=str(tile.tile_id), layer=str(z))
-        # includes
-        for i, ts in enumerate(tilesets):
-            etree.SubElement(xml_include, tileset.__xml_type__, src=ts._xml_source.__str__(), tileset_id=str(i))
+    def _create_matrix(self):
+        for x in range(0, self._width):
+            self._matrix.append([])
+            for y in range(0, self._height):
+                self._matrix[x].append([])
+                for z in range(0, self._layers):
+                    tile = EmptyTile()
+                    tile.set_absolute_position(x * self._tile_size, y * self._tile_size)
+                    self._matrix[x][y].append(tile)
 
-        destination.write(etree.tostring(xml_root, pretty_print=True))
+    def _create_supertiles(self):
+        for super_x in range(0, self._width / self._supertile_size):
+            self._supertiles.append([])
+            for super_y in range(0, self._height / self._supertile_size):
+                batch = Batch()
+                self._supertiles[super_x].append(batch)
+                for x in range(super_x * self._supertile_size, (super_x + 1) * self._supertile_size):
+                    for y in range(super_y * self._supertile_size, (super_y + 1) * self._supertile_size):
+                        for z in range(0, self._layers):
+                            self._matrix[x][y][z].batch = batch
+
+    def _get_visible_tiles(self):
+        offset_x = (self._window_x / 2) - self._center_x
+        offset_y = (self._window_y / 2) - self._center_y
+
+        x1 = -1 * offset_x / self._tile_size
+        y1 = -1 * offset_y / self._tile_size
+        if x1 < 0:
+            x1 = 0
+        if y1 < 0:
+            y1 = 0
+
+        x2 = x1 + int(ceil(self.window_x / self._tile_size)) + 1
+        y2 = y1 + int(ceil(self.window_y / self._tile_size)) + 1
+        if x2 >= self._width:
+            x2 = self._width - 1
+        if y2 >= self._height:
+            y2 = self._height - 1
+
+        return x1, y1, x2, y2, offset_x, offset_y
+
+    def _set_visible_supertiles(self, x1, y1, x2, y2):
+        super_x1 = x1 / self._supertile_size
+        super_y1 = y1 / self._supertile_size
+        super_x2 = x2 / self._supertile_size + 1
+        super_y2 = y2 / self._supertile_size + 1
+
+        if (super_x1, super_y1, super_x2, super_y2) == (self._super_x1, self._super_y1, self._super_x2, self._super_y2):
+            return self._visible_supertiles
+        (self._super_x1, self._super_y1, self._super_x2, self._super_y2) = (super_x1, super_y1, super_x2, super_y2)
+
+        visible_supertiles = []
+        for x in range(super_x1, super_x2):
+            for y in range(super_y1, super_y2):
+                visible_supertiles.append(self._supertiles[x][y])
+
+        self._visible_supertiles = visible_supertiles
+
+    def _get_supertile(self, x, y):
+        return self._supertiles[int(x) / self._supertile_size][int(y) / self._supertile_size]
 
 
 def xml_load(source):
@@ -146,11 +159,12 @@ def xml_load(source):
     xml_include = xml_root.findall('includes')[0]
     xml_map = xml_root.findall('map')[0]
     # meta
-    tile_size = int(xml_meta.findall('tile_size')[0].get('value'))
     width = int(xml_meta.findall('width')[0].get('value'))
     height = int(xml_meta.findall('height')[0].get('value'))
     layers = int(xml_meta.findall('layers')[0].get('value'))
-    mp = Map(tile_size, width, height, layers)
+    tile_size = int(xml_meta.findall('tile_size')[0].get('value'))
+    supertile_size = int(xml_meta.findall('supertile_size')[0].get('value'))
+    mp = Map(width, height, layers, tile_size, supertile_size)
     # fieldsets
     tilesets = []
     for include in xml_include:
@@ -163,7 +177,7 @@ def xml_load(source):
         tile_id = int(tile_data.get('tile_id'))
         layer = int(tile_data.get('layer'))
         tile = ts.get_tile_by_id(tile_id)
-        mp.set_tile_layer(x, y, layer, tile)
+        mp.set_tile(x, y, layer, tile)
 
     mp._xml_source = source
     return mp
